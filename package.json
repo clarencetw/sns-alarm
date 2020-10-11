@@ -20,5 +20,8 @@
     "url": "https://github.com/clarencetw/sns-alarm/issues"
   },
   "homepage": "https://github.com/clarencetw/sns-alarm#readme",
-  "dependencies": {}
+  "dependencies": {
+    "axios": "^0.20.0",
+    "form-data": "^3.0.0"
+  }
 }
