@@ -1,0 +1,24 @@
+{
+  "name": "sns-alarm",
+  "version": "1.0.0",
+  "description": "line-notify, discord",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clarencetw/sns-alarm.git"
+  },
+  "keywords": [
+    "line-notify",
+    "discord"
+  ],
+  "author": "Clarence <me@clarence.tw>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/clarencetw/sns-alarm/issues"
+  },
+  "homepage": "https://github.com/clarencetw/sns-alarm#readme",
+  "dependencies": {}
+}
