@@ -2,6 +2,11 @@ const AWS = require("aws-sdk");
 const axios = require("axios");
 const FormData = require("form-data");
 
+let lineNotifyToken = process.env.LINE_NOTIFY_TOKEN
+  ? process.env.LINE_NOTIFY_TOKEN
+  : "";
+let discordUrl = process.env.DISCORD_URL ? process.env.DISCORD_URL : "";
+
 let widgetDefinition = {
   MetricWidget: {
     width: 600,
@@ -48,6 +53,68 @@ const lineNotify = async (url, accessToken, payload) => {
   });
 };
 
+const discord = async (url, payload) => {
+  let formData = new FormData();
+  formData.append("payload_json", JSON.stringify(payload.message));
+  formData.append("imageFile", payload.image, {
+    filename: "CloudWatch.png",
+    contentType: "image/png",
+  });
+
+  return await axios.post(url, formData, {
+    headers: {
+      ...formData.getHeaders(),
+    },
+  });
+};
+
+const makeLineMessage = (subject, timestamp, trigger, element) => {
+  let message = "\n";
+
+  message += `Subject: ${subject}\n`;
+  message += `Timestamp: ${timestamp}\n`;
+
+  for (var prop in element) {
+    message += `${element[prop]}: ${trigger[element[prop]]}\n`;
+  }
+  return message;
+};
+
+const makeDiscordMessage = (subject, timestamp, trigger, element) => {
+  const message = {
+    username: "AWS",
+    avatar_url:
+      "https://a0.awsstatic.com/libra-css/images/logos/aws_logo_smile_1200x630.png",
+    embeds: [
+      {
+        color: 16711680,
+        fields: [],
+      },
+    ],
+  };
+
+  message.embeds[0].fields.push({
+    name: "Subject",
+    value: subject,
+    inline: true,
+  });
+  message.embeds[0].fields.push({
+    name: "Timestamp",
+    value: timestamp,
+    inline: true,
+  });
+
+  for (var prop in element) {
+    message.embeds[0].fields.push({
+      name: element[prop],
+      value: trigger[element[prop]],
+      inline: true,
+    });
+  }
+
+  return message;
+};
+
 exports.handler = function (event) {
   console.log("event:", JSON.stringify(event, undefined, 2));
 
@@ -55,25 +122,42 @@ exports.handler = function (event) {
     const record = event.Records[recordNum];
     const { Subject, Message, Timestamp } = record.Sns;
     const SnsMessage = JSON.parse(Message);
-    const message = `\nSubject: ${Subject}\nTimestamp: ${Timestamp}\nAlert: ${SnsMessage.Trigger.Namespace}\netric: ${SnsMessage.Trigger.MetricName}\nThreshold: ${SnsMessage.Trigger.Threshold}`;
+    const { Trigger } = SnsMessage;
 
     var cloudwatch = new AWS.CloudWatch();
 
     cloudwatch.getMetricWidgetImage(
-      getWidgetDefinition(SnsMessage.Trigger, SnsMessage),
+      getWidgetDefinition(Trigger, SnsMessage),
       async function (err, data) {
         if (err) console.log(err, err.stack);
         else {
           var image = Buffer.from(data.MetricWidgetImage);
 
-          await lineNotify(
-            "https://notify-api.line.me/api/notify",
-            "your-line-notify-token",
-            {
-              message,
+          if (lineNotifyToken !== "") {
+            await lineNotify(
+              "https://notify-api.line.me/api/notify",
+              lineNotifyToken,
+              {
+                message: makeLineMessage(Subject, Timestamp, Trigger, [
+                  "Namespace",
+                  "MetricName",
+                  "Threshold",
+                ]),
+                image,
+              }
+            );
+          }
+
+          if (discordUrl !== "") {
+            await discord(discordUrl, {
+              message: makeDiscordMessage(Subject, Timestamp, Trigger, [
+                "Namespace",
+                "MetricName",
+                "Threshold",
+              ]),
               image,
-            }
-          );
+            });
+          }
         }
       }
     );
